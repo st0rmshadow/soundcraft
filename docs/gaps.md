@@ -1,6 +1,6 @@
 # Where SoundCraft falls short of Pro Tools
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-12 · **Change:** minor (G-01: audio device settings and opt-in ASIO) · **Target:** Avid Pro Tools Ultimate 2026.4.1
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-16 · **Change:** minor (G-01: Linux native PipeWire via cpal 0.18) · **Target:** Avid Pro Tools Ultimate 2026.4.1
 
 Every known shortfall, one entry each, ranked by how much it stops a Pro Tools user from doing
 real work in SoundCraft. This is the work list: pick from the top. Rows marked **alpha blocker**
@@ -46,10 +46,13 @@ When you close a gap, delete its entry (or shrink it) in the same PR, and bump t
   device, sample rate and device buffer size (kept with the preferences, per machine; `ui.audio_device`
   for agents); f32 and 16/32-bit integer devices; ASIO behind the opt-in `asio` build feature
   (verified on Windows with an SSL 2+ at 128 samples).
+- **Done (2026-10-16):** Linux builds cpal 0.18 with the native **PipeWire** host (preferred
+  default when the server is up); ALSA remains available. Optional `--features jack` for
+  pipewire-jack. Still needs hands-on verification on Omarchy / other distros.
 - **Missing:** routing to physical channels (I/O Setup), one duplex stream on one clock (input and
   output are still separate cpal streams), latency reporting and record-offset compensation, ASIO
-  in official builds (owner decision: Steinberg's SDK is proprietary or GPLv3), JACK, and
-  verification on macOS and Linux. The mix still runs in fixed 512-sample blocks.
+  in official builds (owner decision: Steinberg's SDK is proprietary or GPLv3), JACK in default
+  builds, and verification on macOS and Linux. The mix still runs in fixed 512-sample blocks.
   `setup.playback_engine` still stores `device`/`buffer_size` in the session, unused.
 - **Evidence:** code above; Playback Engine window says "Mix block size: 512 samples"; issue #42
   (no input device selection, forced monitoring feedback with virtual routing).

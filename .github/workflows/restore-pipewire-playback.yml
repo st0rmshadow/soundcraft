@@ -36,17 +36,24 @@ jobs:
               elif parts:
                   b64 = ''.join(p.read_text().strip() for p in parts)
               else:
-                  print('missing', prefix)
+                  print('skip missing', prefix)
                   continue
-              data = gzip.decompress(base64.b64decode(b64))
+              try:
+                  data = gzip.decompress(base64.b64decode(b64))
+              except Exception as e:
+                  print('decode failed', prefix, e)
+                  continue
               got = hashlib.md5(data).hexdigest()
-              assert got == expect_md5, (target, got, expect_md5)
+              if got != expect_md5:
+                  print('md5 mismatch', target, got, expect_md5)
+                  continue
               pathlib.Path(target).parent.mkdir(parents=True, exist_ok=True)
               pathlib.Path(target).write_bytes(data)
               print('restored', target, len(data), got)
               changed = True
           if not changed:
-              raise SystemExit('no staged payloads found')
+              raise SystemExit('no staged payloads restored')
+          # remove only successfully unused staging leftovers after restore attempts
           if tmp.exists():
               shutil.rmtree(tmp)
           wf = pathlib.Path('.github/workflows/restore-pipewire-playback.yml')

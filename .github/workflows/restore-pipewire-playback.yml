@@ -3,7 +3,7 @@ on:
   push:
     branches: [cursor/pipewire-audio-f910]
     paths:
-      - '.tmp-pipewire/**'
+      - '.tmp-pipewire/READY'
 permissions:
   contents: write
 concurrency:
@@ -22,40 +22,30 @@ jobs:
           python3 <<'PY'
           import base64, gzip, hashlib, pathlib, shutil
           tmp = pathlib.Path('.tmp-pipewire')
+          if not (tmp / 'READY').exists():
+              raise SystemExit('READY marker missing')
           jobs = [
               ('record.rs', 'crates/playback/src/record.rs', '8b0975043b53393dc676d6a1b51bdf5b'),
               ('lib.rs', 'crates/playback/src/lib.rs', 'a5d2b5ca867a80d119f595920f0bc869'),
               ('Cargo.lock', 'Cargo.lock', '26497d5921a38df7776acf5d8643b13b'),
           ]
-          changed = False
+          restored = []
           for prefix, target, expect_md5 in jobs:
-              single = tmp / f'{prefix}.gz.b64'
               parts = sorted(tmp.glob(f'{prefix}.b64.*'))
-              if single.exists():
-                  b64 = single.read_text().strip()
-              elif parts:
-                  b64 = ''.join(p.read_text().strip() for p in parts)
-              else:
-                  print('skip missing', prefix)
-                  continue
-              try:
-                  data = gzip.decompress(base64.b64decode(b64))
-              except Exception as e:
-                  print('decode failed', prefix, e)
-                  continue
+              if not parts:
+                  raise SystemExit(f'missing chunks for {prefix}')
+              b64 = ''.join(p.read_text().strip() for p in parts)
+              data = gzip.decompress(base64.b64decode(b64))
               got = hashlib.md5(data).hexdigest()
               if got != expect_md5:
-                  print('md5 mismatch', target, got, expect_md5)
-                  continue
+                  raise SystemExit(f'md5 mismatch {target}: {got} != {expect_md5}')
               pathlib.Path(target).parent.mkdir(parents=True, exist_ok=True)
               pathlib.Path(target).write_bytes(data)
               print('restored', target, len(data), got)
-              changed = True
-          if not changed:
-              raise SystemExit('no staged payloads restored')
-          # remove only successfully unused staging leftovers after restore attempts
-          if tmp.exists():
-              shutil.rmtree(tmp)
+              restored.append(target)
+          if len(restored) != 3:
+              raise SystemExit(f'expected 3 restores, got {restored}')
+          shutil.rmtree(tmp)
           wf = pathlib.Path('.github/workflows/restore-pipewire-playback.yml')
           if wf.exists():
               wf.unlink()

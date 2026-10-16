@@ -24,7 +24,7 @@ pub(crate) fn format_rank(f: cpal::SampleFormat) -> Option<usize> {
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct AudioConfig {
-    /// Audio system (cpal host name: "WASAPI", "ASIO", "CoreAudio", "ALSA", "JACK", ...).
+    /// Audio system (cpal host name: "WASAPI", "ASIO", "CoreAudio", "PipeWire", "ALSA", "JACK", ...).
     pub system: Option<String>,
     pub output: Option<String>,
     pub input: Option<String>,
@@ -64,9 +64,9 @@ pub struct AudioSystem {
     pub inputs: Vec<DeviceInfo>,
 }
 
-#[allow(deprecated)]
 fn device_name(d: &cpal::Device) -> Option<String> {
-    d.name().ok()
+    // cpal 0.18: Device implements Display; description() carries richer metadata.
+    Some(d.to_string())
 }
 
 fn describe(d: &cpal::Device, default_name: Option<&str>, output: bool) -> Option<DeviceInfo> {
@@ -78,7 +78,7 @@ fn describe(d: &cpal::Device, default_name: Option<&str>, output: bool) -> Optio
     };
     let max_channels = ranges.iter().map(cpal::SupportedStreamConfigRange::channels).max().unwrap_or(0);
     let sample_rates =
-        STANDARD_RATES.iter().copied().filter(|r| ranges.iter().any(|c| c.min_sample_rate().0 <= *r && c.max_sample_rate().0 >= *r)).collect();
+        STANDARD_RATES.iter().copied().filter(|r| ranges.iter().any(|c| c.min_sample_rate() <= *r && c.max_sample_rate() >= *r)).collect();
     let (mut buffer_min, mut buffer_max) = (None::<u32>, None::<u32>);
     for c in &ranges {
         if let cpal::SupportedBufferSize::Range { min, max } = c.buffer_size() {
@@ -201,5 +201,21 @@ mod tests {
         // Every listed system has a name; on a machine without audio the lists are just empty.
         assert!(systems.iter().all(|s| !s.name.is_empty()));
         assert!(systems.iter().filter(|s| s.is_default).count() <= 1);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_hosts_include_alsa_and_prefer_pipewire_when_available() {
+        let systems = audio_systems();
+        let names: Vec<String> = systems.iter().map(|s| s.name.to_ascii_lowercase()).collect();
+        // ALSA is always compiled in. PipeWire appears when cpal can open the host (server up).
+        assert!(
+            names.iter().any(|n| n == "alsa") || names.is_empty(),
+            "expected ALSA among {names:?}"
+        );
+        if let Some(pw) = systems.iter().find(|s| s.name.eq_ignore_ascii_case("pipewire")) {
+            // cpal 0.18 prefers PipeWire as the default Linux host when it is available.
+            assert!(pw.is_default || systems.iter().any(|s| s.is_default), "PipeWire listed but no default host in {names:?}");
+        }
     }
 }

@@ -63,18 +63,21 @@ kept ready for a Flathub submission; the release's `.flatpak` bundles come from
 ### Audio libraries
 
 SoundCraft plays and records through [cpal](https://github.com/RustAudio/cpal): CoreAudio on
-macOS, WASAPI on Windows, ALSA on Linux and FreeBSD (PulseAudio and PipeWire through their ALSA
-plugins), and WebAudio in the browser.
+macOS, WASAPI on Windows, PipeWire (native) plus ALSA on Linux, ALSA on FreeBSD, and WebAudio
+in the browser.
 
-- **Linux** builds need the ALSA headers (`libasound2-dev` and `pkg-config` on Ubuntu). The binary
-  links `libasound.so.2`, so the `.deb` depends on `libasound2 | libasound2t64` and the `.rpm` on
-  `alsa-lib`; the AppImage and tarball expect it on the host (every desktop distro has it).
+- **Linux** builds need the ALSA headers (`libasound2-dev` and `pkg-config` on Ubuntu) and, for
+  the native PipeWire host, `libpipewire-0.3-dev`. The binary links `libasound.so.2` and
+  `libpipewire-0.3`; the `.deb` / `.rpm` should depend on both. PipeWire is preferred as the
+  default audio system in Setup › Playback Engine when a PipeWire server is running; ALSA
+  remains selectable (including PipeWire's ALSA plugin). Optional `--features jack` adds the
+  JACK host (useful with `pipewire-jack`).
 - **FreeBSD** builds need `alsa-lib` (`pkg install alsa-lib`); at runtime `alsa-plugins-oss`
   routes ALSA to the OSS `sound(4)` devices. Without a device the player falls back to its
   silent clock, so the transport still runs.
 - **Flatpak**: alsa-lib and its PulseAudio plugin come with the freedesktop runtime; the
-  manifests grant `--socket=pulseaudio` (PipeWire's pulse server answers on it). No raw ALSA
-  devices and no JACK: SoundCraft doesn't use either.
+  manifests grant `--socket=pulseaudio` (PipeWire's pulse server answers on it). Native PipeWire
+  inside Flatpak needs the PipeWire socket granted as well when packaging enables it.
 - **Web**: browsers start audio only after a user gesture, so the first click in the page may be
   needed before sound plays. The web build has no recording.
 

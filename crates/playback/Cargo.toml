@@ -19,6 +19,11 @@ serde.workspace = true
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 cpal.workspace = true
 
+# On Linux, turn on cpal's native PipeWire host so Setup › Playback Engine can list
+# "PipeWire" (and prefers it as the default when a server is running). ALSA stays available.
+[target.'cfg(all(target_os = "linux", not(target_arch = "wasm32")))'.dependencies]
+cpal = { workspace = true, features = ["pipewire"] }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 cpal = { workspace = true, features = ["wasm-bindgen"] }
 
@@ -26,6 +31,12 @@ cpal = { workspace = true, features = ["wasm-bindgen"] }
 # ASIO on Windows (cpal's ASIO host). Off by default: building it downloads Steinberg's ASIO SDK
 # (its own licence) and needs LLVM (libclang) for the bindings. `cargo build -p soundcraft --features asio`.
 asio = ["cpal/asio"]
+# JACK host via cpal (useful with pipewire-jack). Needs libjack at link time.
+jack = ["cpal/jack"]
+# Explicit PipeWire feature for non-Linux targets is a no-op; on Linux the host is always
+# enabled via the target dependency above. Kept so `cargo build -p soundcraft --features pipewire`
+# matches the ASIO pattern and packaging scripts can pass it uniformly.
+pipewire = []
 
 [dev-dependencies]
 serde_json.workspace = true

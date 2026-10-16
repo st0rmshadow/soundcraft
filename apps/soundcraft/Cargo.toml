@@ -13,6 +13,9 @@ workspace = true
 [features]
 # ASIO audio devices on Windows (see soundcraft-playback's `asio` feature).
 asio = ["soundcraft-playback/asio"]
+# JACK host (see soundcraft-playback). On Linux, PipeWire is enabled by default via cpal.
+jack = ["soundcraft-playback/jack"]
+pipewire = ["soundcraft-playback/pipewire"]
 
 [dependencies]
 soundcraft-engine.workspace = true
